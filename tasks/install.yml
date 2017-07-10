@@ -69,10 +69,3 @@
     src: "{{ node_exporter_bin_path }}/node_exporter"
     dest: "/usr/bin/node_exporter"
     state: link
-
-- name: NODE_EXPORTER | Copy Daemon script
-  template:
-    src: node_exporter.service.j2
-    dest: /etc/systemd/system/node_exporter.service
-    mode: 0644
-  notify: restart node_exporter

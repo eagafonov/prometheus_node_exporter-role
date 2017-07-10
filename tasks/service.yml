@@ -1,8 +1,49 @@
 ---
 
-- name: NODE_EXPORTER | Configuring service
+- name: NODE_EXPORTER | Check for systemd
+  command: systemctl --version
+  register: node_exporter_systemd_check
+  changed_when: false
+  ignore_errors: true
+
+# Systemd stuff
+- name: NODE_EXPORTER | Copy Daemon script
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: 0644
+  notify: restart node_exporter
+  when: 'node_exporter_systemd_check|succeeded'
+
+- name: NODE_EXPORTER | Configuring service (systemd)
   systemd:
     name: node_exporter
     state: "{{ node_exporter_service_state }}"
     enabled: "{{ node_exporter_service_enabled }}"
     daemon_reload: yes
+  when: 'node_exporter_systemd_check|succeeded'
+
+# Old init.d stuff
+- name: NODE_EXPORTER | Installing dependencies for daemon
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - daemon
+  tags:
+    skip_ansible_lint
+
+- name: NODE_EXPORTER | Copy Daemon script (init)
+  template:
+    src: node_exporter.init.j2
+    dest: /etc/init.d/node_exporter
+    mode: 0755
+  notify: restart node_exporter
+  when: 'node_exporter_systemd_check|failed'
+
+- name: NODE_EXPORTER | Configuring service (init.d)
+  service:
+    name: node_exporter
+    state: "{{ node_exporter_service_state }}"
+    enabled: "{{ node_exporter_service_enabled }}"
+  when: 'node_exporter_systemd_check|failed'
